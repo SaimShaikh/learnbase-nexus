@@ -34,12 +34,10 @@ import {
   MapPin,
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
-
-// ✅ Update with your EC2 backend API URL
-const API_URL = "http://<EC2-PUBLIC-IP>:5000";
+import { getDBConnection } from "@/lib/db"; // 👈 use our direct DB helper
 
 export interface Student {
-  id: string;
+  id: number;
   firstName: string;
   lastName: string;
   city: string;
@@ -63,13 +61,14 @@ const StudentTable = ({ onEdit }: StudentTableProps) => {
   const [loading, setLoading] = useState(false);
   const recordsPerPage = 10;
 
-  // ✅ Fetch students from backend
+  // ✅ Fetch students directly from RDS
   const fetchStudents = async () => {
     setLoading(true);
     try {
-      const res = await fetch(`${API_URL}/students`);
-      const data = await res.json();
-      setStudents(data);
+      const conn = await getDBConnection();
+      const [rows] = await conn.query("SELECT * FROM students");
+      setStudents(rows as Student[]);
+      await conn.end();
     } catch (error) {
       console.error("Error fetching students:", error);
       toast({ title: "Error", description: "Could not fetch student records" });
@@ -77,11 +76,12 @@ const StudentTable = ({ onEdit }: StudentTableProps) => {
     setLoading(false);
   };
 
-  // ✅ Delete student
-  const handleDelete = async (id: string) => {
+  // ✅ Delete student directly in RDS
+  const handleDelete = async (id: number) => {
     try {
-      const res = await fetch(`${API_URL}/students/${id}`, { method: "DELETE" });
-      if (!res.ok) throw new Error("Failed to delete student");
+      const conn = await getDBConnection();
+      await conn.execute("DELETE FROM students WHERE id = ?", [id]);
+      await conn.end();
 
       toast({
         title: "Deleted!",
@@ -89,7 +89,7 @@ const StudentTable = ({ onEdit }: StudentTableProps) => {
         variant: "destructive",
       });
 
-      fetchStudents(); // refresh table
+      fetchStudents();
     } catch (error) {
       console.error(error);
       toast({ title: "Error", description: "Could not delete student" });

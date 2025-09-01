@@ -23,12 +23,15 @@ const Index = () => {
 
   return (
     <div className="min-h-screen bg-background">
+      {/* Header with tabs */}
       <Header activeTab={activeTab} onTabChange={handleTabChange} />
 
       <main className="container mx-auto px-6 py-8">
         {activeTab === "add" ? (
+          // Form for adding/editing student → this will POST/PUT to RDS
           <StudentForm student={editingStudent || undefined} />
         ) : (
+          // Table that fetches students from RDS
           <StudentTable onEdit={handleEditClick} />
         )}
       </main>

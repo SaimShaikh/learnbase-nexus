@@ -1,34 +1,68 @@
-import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { toast } from "@/hooks/use-toast";
 import { Save, User } from "lucide-react";
 
+const API_URL = "http://<EC2-PUBLIC-IP>:5000"; // replace with your backend API
+
+// ✅ Validation schema
 const studentSchema = z.object({
   firstName: z.string().min(2, "First name must be at least 2 characters"),
   lastName: z.string().min(2, "Last name must be at least 2 characters"),
   city: z.string().min(2, "City must be at least 2 characters"),
   email: z.string().email("Please enter a valid email address"),
-  phone: z.string().regex(/^\d{10}$/, "Phone number must be exactly 10 digits"),
-  bio: z.string().min(10, "Bio must be at least 10 characters").max(500, "Bio must not exceed 500 characters"),
-  tenthMarks: z.number().min(0, "Marks cannot be negative").max(100, "Marks cannot exceed 100"),
-  twelfthMarks: z.number().min(0, "Marks cannot be negative").max(100, "Marks cannot exceed 100"),
+  phone: z
+    .string()
+    .regex(/^\d{10}$/, "Phone number must be exactly 10 digits"),
+  bio: z
+    .string()
+    .min(10, "Bio must be at least 10 characters")
+    .max(500, "Bio must not exceed 500 characters"),
+  tenthMarks: z
+    .number()
+    .min(0, "Marks cannot be negative")
+    .max(100, "Marks cannot exceed 100"),
+  twelfthMarks: z
+    .number()
+    .min(0, "Marks cannot be negative")
+    .max(100, "Marks cannot exceed 100"),
   degreeType: z.string().min(1, "Please select a degree type"),
-  yearsOfStudy: z.number().min(1, "Years of study must be at least 1").max(10, "Years of study cannot exceed 10"),
+  yearsOfStudy: z
+    .number()
+    .min(1, "Years of study must be at least 1")
+    .max(10, "Years of study cannot exceed 10"),
 });
 
 type StudentFormData = z.infer<typeof studentSchema>;
 
 interface StudentFormProps {
   student?: StudentFormData & { id?: string };
-  onSubmit: (data: StudentFormData) => void;
   isLoading?: boolean;
 }
 
@@ -47,7 +81,7 @@ const degreeOptions = [
   { value: "MCom", label: "Master of Commerce (MCom)" },
 ];
 
-const StudentForm = ({ student, onSubmit, isLoading = false }: StudentFormProps) => {
+const StudentForm = ({ student, isLoading = false }: StudentFormProps) => {
   const form = useForm<StudentFormData>({
     resolver: zodResolver(studentSchema),
     defaultValues: student || {
@@ -64,18 +98,37 @@ const StudentForm = ({ student, onSubmit, isLoading = false }: StudentFormProps)
     },
   });
 
-  const handleSubmit = (data: StudentFormData) => {
-    onSubmit(data);
-    if (!student) {
-      form.reset();
-      toast({
-        title: "Success!",
-        description: "Student record has been added successfully.",
+  // ✅ Submit handler with backend API
+  const handleSubmit = async (data: StudentFormData) => {
+    try {
+      const url = student
+        ? `${API_URL}/students/${student.id}`
+        : `${API_URL}/students`;
+
+      const method = student ? "PUT" : "POST";
+
+      const response = await fetch(url, {
+        method,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
       });
-    } else {
+
+      if (!response.ok) throw new Error("Failed to save student");
+
       toast({
-        title: "Updated!",
-        description: "Student record has been updated successfully.",
+        title: student ? "Updated!" : "Success!",
+        description: student
+          ? "Student record has been updated successfully."
+          : "Student record has been added successfully.",
+      });
+
+      if (!student) form.reset();
+    } catch (error) {
+      console.error(error);
+      toast({
+        title: "Error!",
+        description: "Something went wrong while saving.",
+        variant: "destructive",
       });
     }
   };
@@ -92,17 +145,20 @@ const StudentForm = ({ student, onSubmit, isLoading = false }: StudentFormProps)
               {student ? "Edit Student Record" : "Add New Student"}
             </CardTitle>
             <CardDescription>
-              {student 
-                ? "Update the student information below" 
-                : "Fill in the form below to add a new student record"
-              }
+              {student
+                ? "Update the student information below"
+                : "Fill in the form below to add a new student record"}
             </CardDescription>
           </div>
         </div>
       </CardHeader>
       <CardContent>
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6">
+          <form
+            onSubmit={form.handleSubmit(handleSubmit)}
+            className="space-y-6"
+          >
+            {/* First & Last Name */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <FormField
                 control={form.control}
@@ -117,7 +173,7 @@ const StudentForm = ({ student, onSubmit, isLoading = false }: StudentFormProps)
                   </FormItem>
                 )}
               />
-              
+
               <FormField
                 control={form.control}
                 name="lastName"
@@ -133,6 +189,7 @@ const StudentForm = ({ student, onSubmit, isLoading = false }: StudentFormProps)
               />
             </div>
 
+            {/* City & Email */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <FormField
                 control={form.control}
@@ -147,7 +204,7 @@ const StudentForm = ({ student, onSubmit, isLoading = false }: StudentFormProps)
                   </FormItem>
                 )}
               />
-              
+
               <FormField
                 control={form.control}
                 name="email"
@@ -155,7 +212,11 @@ const StudentForm = ({ student, onSubmit, isLoading = false }: StudentFormProps)
                   <FormItem>
                     <FormLabel>Email ID</FormLabel>
                     <FormControl>
-                      <Input type="email" placeholder="Enter email address" {...field} />
+                      <Input
+                        type="email"
+                        placeholder="Enter email address"
+                        {...field}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -163,6 +224,7 @@ const StudentForm = ({ student, onSubmit, isLoading = false }: StudentFormProps)
               />
             </div>
 
+            {/* Phone */}
             <FormField
               control={form.control}
               name="phone"
@@ -170,24 +232,9 @@ const StudentForm = ({ student, onSubmit, isLoading = false }: StudentFormProps)
                 <FormItem>
                   <FormLabel>Phone Number</FormLabel>
                   <FormControl>
-                    <Input placeholder="Enter 10-digit phone number" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="bio"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Bio</FormLabel>
-                  <FormControl>
-                    <Textarea 
-                      placeholder="Enter a brief bio (10-500 characters)" 
-                      className="min-h-[100px]"
-                      {...field} 
+                    <Input
+                      placeholder="Enter 10-digit phone number"
+                      {...field}
                     />
                   </FormControl>
                   <FormMessage />
@@ -195,6 +242,26 @@ const StudentForm = ({ student, onSubmit, isLoading = false }: StudentFormProps)
               )}
             />
 
+            {/* Bio */}
+            <FormField
+              control={form.control}
+              name="bio"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Bio</FormLabel>
+                  <FormControl>
+                    <Textarea
+                      placeholder="Enter a brief bio (10-500 characters)"
+                      className="min-h-[100px]"
+                      {...field}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            {/* Marks */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <FormField
                 control={form.control}
@@ -203,18 +270,20 @@ const StudentForm = ({ student, onSubmit, isLoading = false }: StudentFormProps)
                   <FormItem>
                     <FormLabel>10th Marks (%)</FormLabel>
                     <FormControl>
-                      <Input 
-                        type="number" 
+                      <Input
+                        type="number"
                         placeholder="Enter 10th marks"
                         {...field}
-                        onChange={(e) => field.onChange(Number(e.target.value))}
+                        onChange={(e) =>
+                          field.onChange(Number(e.target.value))
+                        }
                       />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
               />
-              
+
               <FormField
                 control={form.control}
                 name="twelfthMarks"
@@ -222,11 +291,13 @@ const StudentForm = ({ student, onSubmit, isLoading = false }: StudentFormProps)
                   <FormItem>
                     <FormLabel>12th Marks (%)</FormLabel>
                     <FormControl>
-                      <Input 
-                        type="number" 
+                      <Input
+                        type="number"
                         placeholder="Enter 12th marks"
                         {...field}
-                        onChange={(e) => field.onChange(Number(e.target.value))}
+                        onChange={(e) =>
+                          field.onChange(Number(e.target.value))
+                        }
                       />
                     </FormControl>
                     <FormMessage />
@@ -235,6 +306,7 @@ const StudentForm = ({ student, onSubmit, isLoading = false }: StudentFormProps)
               />
             </div>
 
+            {/* Degree & Years */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <FormField
                 control={form.control}
@@ -242,7 +314,10 @@ const StudentForm = ({ student, onSubmit, isLoading = false }: StudentFormProps)
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Degree Type</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <Select
+                      onValueChange={field.onChange}
+                      defaultValue={field.value}
+                    >
                       <FormControl>
                         <SelectTrigger>
                           <SelectValue placeholder="Select degree type" />
@@ -260,7 +335,7 @@ const StudentForm = ({ student, onSubmit, isLoading = false }: StudentFormProps)
                   </FormItem>
                 )}
               />
-              
+
               <FormField
                 control={form.control}
                 name="yearsOfStudy"
@@ -268,13 +343,15 @@ const StudentForm = ({ student, onSubmit, isLoading = false }: StudentFormProps)
                   <FormItem>
                     <FormLabel>Years of Study</FormLabel>
                     <FormControl>
-                      <Input 
-                        type="number" 
-                        min="1" 
+                      <Input
+                        type="number"
+                        min="1"
                         max="10"
                         placeholder="Enter years of study"
                         {...field}
-                        onChange={(e) => field.onChange(Number(e.target.value))}
+                        onChange={(e) =>
+                          field.onChange(Number(e.target.value))
+                        }
                       />
                     </FormControl>
                     <FormMessage />
@@ -283,13 +360,18 @@ const StudentForm = ({ student, onSubmit, isLoading = false }: StudentFormProps)
               />
             </div>
 
-            <Button 
-              type="submit" 
+            {/* Submit Button */}
+            <Button
+              type="submit"
               className="w-full gap-2 shadow-elegant hover:shadow-glow transition-all duration-300"
               disabled={isLoading}
             >
               <Save className="w-4 h-4" />
-              {isLoading ? "Saving..." : student ? "Update Student" : "Add Student"}
+              {isLoading
+                ? "Saving..."
+                : student
+                ? "Update Student"
+                : "Add Student"}
             </Button>
           </form>
         </Form>
